@@ -1,3 +1,4 @@
+import { VERSION, LAST } from "./version.js";
 import { createStore } from "./store.js";
 import { VOTERS as V0, STATUSES } from "./seed.js";
 const VOTERS = JSON.parse(localStorage.getItem("pulse-voters")||"null")||V0;
@@ -59,3 +60,5 @@ function showComments(c,id){ const box=c.querySelector(".cm");
   box.innerHTML=`<div class="list"></div><div class="row"><input type="text" placeholder="Comentario / motivo"><button>Añadir</button></div>`;
   store.onComments(id,l=>box.querySelector(".list").innerHTML=l.map(x=>`<p class="mut"><b>${esc(x.who)}</b>: ${esc(x.text)}</p>`).join(""));
   box.querySelector("button").onclick=()=>{const i=box.querySelector("input"); if(i.value) store.addComment(id,{who:$("#who").value,text:i.value}), i.value="";}; }
+
+const ft=document.createElement("footer"); ft.style.cssText="text-align:center;padding:16px;font-size:13px;color:#8fa5c4"; ft.textContent="Pulse decisiones "+VERSION+" · Último cambio: "+LAST; document.body.append(ft);
