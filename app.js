@@ -13,7 +13,7 @@ store.onAuth(async u=>{ $("#login").hidden=!!u; $("#app").hidden=!u; $("#out").h
   if(u&&!unsubD){ await store.seedIfEmpty(); unsubD=store.onDecisions(d=>{data=d;render()}); } });
 $("#new").onclick=async()=>{ const t=prompt("Título de la decisión"); if(!t) return;
   await store.save({id:"D-"+Date.now().toString(36),title:t,description:"",status:"propuesta",options:[],votes:{}}); };
-const pinned=new Set(), open=new Set(), assetCache={}, saveState={};
+const drafts={}, pinned=new Set(), open=new Set(), assetCache={}, saveState={};
 const note2=t=>{let n=$("#movenote"); if(!n){n=document.createElement("div");n.id="movenote";n.style.cssText="padding:8px 12px;background:#24406a;border-radius:8px;margin:6px 0";$("#app").prepend(n);} n.textContent=t; n.hidden=!t;};
 const note=t=>{let n=$("#assetnote"); if(!n){n=document.createElement("div");n.id="assetnote";n.className="mut";n.style.padding="4px 12px";$("main").prepend(n);} n.textContent=t;};
 let hyd=false;
@@ -35,7 +35,7 @@ function render(){
     <div class="row">${["si","no","dudo"].map(k=>`<button class="v ${k} ${mine===k?"on":""}" data-vote="${k}">${{si:"Sí",no:"No",dudo:"Dudo"}[k]} ${cnt(k)}</button>`).join("")}
     <span class="mut">${Object.entries(v).map(([n,x])=>n+": "+x).join(" · ")}</span></div>
     <div class="ans">${Object.entries(d.answers||{}).filter(([,t])=>t).map(([n,t])=>`<p class="a"><b>${esc(n)}</b>: ${esc(t)}</p>`).join("")}
-    <textarea rows="2" data-ans placeholder="Tu respuesta o propuesta en texto libre (${esc(who)})">${esc((d.answers||{})[who]||"")}</textarea>
+    <textarea rows="2" data-ans placeholder="Tu respuesta o propuesta en texto libre (${esc(who)})">${esc(drafts[d.id+"|"+who]??((d.answers||{})[who]||""))}</textarea>
     <div class="row"><button class="p" data-saveans>Guardar respuesta</button><span class="mut" data-st>${esc(saveState[d.id]||"")}</span></div></div>
     <div class="row"><select data-status>${STATUSES.map(s=>`<option ${s===d.status?"selected":""}>${s}</option>`).join("")}</select>
     <button data-edit>Editar</button><button data-cm>Comentarios</button></div><div class="cm"></div></div>`; }).join("");
@@ -44,9 +44,9 @@ function render(){
     const ta=c.querySelector("[data-ans]"), mine0=(d.answers||{})[who]||""; let last=mine0, timer=null, who0=who;
     const setSt=t=>{saveState[id]=t; const el=document.querySelector(`.card[data-id="${CSS.escape(id)}"] [data-st]`); if(el) el.textContent=t;};
     const doSave=async()=>{ clearTimeout(timer); const v=ta.value; if(v===last){ta.dataset.dirty="0";return;}
-      setSt("Guardando…"); try{ const cur=data.find(x=>x.id===id)||d; await store.save({id,answers:{...(cur.answers||{}),[who0]:v}}); last=v; if(ta.value===v) ta.dataset.dirty="0"; setSt("Guardado ✓ "+new Date().toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"})); }
+      setSt("Guardando…"); try{ const cur=data.find(x=>x.id===id)||d; await store.save({id,answers:{...(cur.answers||{}),[who0]:v}}); last=v; if(drafts[id+"|"+who0]===v) delete drafts[id+"|"+who0]; if(ta.value===v) ta.dataset.dirty="0"; setSt("Guardado ✓ "+new Date().toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"})); }
       catch(e){ setSt("No se pudo guardar: "+(e.code||e.message)); } };
-    ta.oninput=()=>{ ta.dataset.dirty="1"; who0=$("#who").value; setSt("Sin guardar…"); clearTimeout(timer); timer=setTimeout(doSave,2000); };
+    ta.oninput=()=>{ ta.dataset.dirty="1"; drafts[id+"|"+$("#who").value]=ta.value; who0=$("#who").value; setSt("Sin guardar…"); clearTimeout(timer); timer=setTimeout(doSave,2000); };
     ta.onblur=()=>{ if(ta.dataset.dirty==="1") doSave(); };
     c.querySelector("[data-saveans]").onclick=()=>doSave();
     c.querySelector("[data-status]").onchange=e=>{ const ns=e.target.value; if($("#filter").value&&$("#filter").value!==ns){ pinned.add(id); note2("Decisión movida a «"+ns+"». Sigue visible aquí hasta que cambies el filtro o recargues."); } store.save({id,status:ns}); };
