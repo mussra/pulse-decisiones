@@ -61,4 +61,24 @@ function showComments(c,id){ const box=c.querySelector(".cm");
   store.onComments(id,l=>box.querySelector(".list").innerHTML=l.map(x=>`<p class="mut"><b>${esc(x.who)}</b>: ${esc(x.text)}</p>`).join(""));
   box.querySelector("button").onclick=()=>{const i=box.querySelector("input"); if(i.value) store.addComment(id,{who:$("#who").value,text:i.value}), i.value="";}; }
 
+
+async function resumen(){
+  const out=["# Pulse decisiones · resumen "+new Date().toLocaleString("es-ES")+" ("+VERSION+")",""];
+  for(const d of data){
+    out.push("## "+d.id+" · "+(d.title||"")+" ["+(d.status||"")+"]");
+    if(d.description) out.push(d.description);
+    if((d.options||[]).length) out.push("Opciones: "+d.options.map(o=>typeof o==="string"?o:JSON.stringify(o)).join(" | "));
+    const v=Object.entries(d.votes||{}); if(v.length) out.push("Votos: "+v.map(([n,x])=>n+"="+x).join(", "));
+    for(const [n,t] of Object.entries(d.answers||{})) if(t) out.push("Respuesta de "+n+": "+t);
+    const cm=await new Promise(r=>{let done=false; try{ const u=store.onComments(d.id,l=>{ if(done) return; done=true; r(l||[]); if(typeof u==="function") try{u()}catch(e){} }); }catch(e){r([])} setTimeout(()=>{if(!done){done=true;r([])}},3000); });
+    for(const x of cm) out.push("Comentario de "+x.who+": "+x.text);
+    out.push("");
+  }
+  return out.join("\n");
+}
+const bar=document.createElement("div"); bar.style.cssText="display:flex;gap:8px;flex-wrap:wrap;padding:6px 12px";
+bar.innerHTML='<button id="cp">Compartir con Instinct / Copiar resumen</button><button id="dl">Descargar resumen (.txt)</button><span id="cpst" class="mut"></span>';
+$("#app").prepend(bar);
+$("#cp").onclick=async()=>{ $("#cpst").textContent="Preparando…"; const t=await resumen(); try{ await navigator.clipboard.writeText(t); $("#cpst").textContent="Copiado ✓ pégalo en el chat"; }catch(e){ $("#cpst").textContent="No se pudo copiar; usa Descargar"; } };
+$("#dl").onclick=async()=>{ const t=await resumen(); const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([t],{type:"text/plain"})); a.download="pulse-resumen.txt"; a.click(); };
 const ft=document.createElement("footer"); ft.style.cssText="text-align:center;padding:16px;font-size:13px;color:#8fa5c4"; ft.textContent="Pulse decisiones "+VERSION+" · Último cambio: "+LAST; document.body.append(ft);
